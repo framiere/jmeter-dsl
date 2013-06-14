@@ -1,7 +1,5 @@
 package com.jaxio.jmeter;
 
-import static com.google.common.collect.Lists.newArrayList;
-
 import java.io.File;
 import java.util.List;
 
@@ -21,34 +19,45 @@ public class JmeterTest {
 		SAXBuilder builder = new SAXBuilder();
 		File xmlFile = new File("src/test/resources/index.xml");
 		Document document = (Document) builder.build(xmlFile);
-		recurse(document.getRootElement(), 0);
+		System.out.println(recurse(document.getRootElement(), 0) + ";");
 	}
 
-	private void recurse(Element element, int depth) {
-		String pad = StringUtils.leftPad(" ", depth);
+	private String recurse(Element element, int depth) {
+		String ret = "";
 		String name = element.getName();
+		String pad = StringUtils.leftPad(" ", depth);
 
-		
-		System.out.println(pad + "new " + StringUtils.capitalize(name) + "() //");
+		ret += pad + "new " + StringUtils.capitalize(name) + "() //\n";
 		for (Attribute attribute : element.getAttributes()) {
-			System.out.println(pad + "." + attribute.getName() + "(\"" + attribute.getValue() + "\") //");
+			ret += pad + "." + attribute.getName() + "(\"" + attribute.getValue() + "\") //\n";
 		}
 		List<Element> children = element.getChildren();
 		if (!children.isEmpty()) {
-			System.out.println(pad + ".add( //");
-			int size = children.size();
-			int i = 0;
+			List<String> childrenValues = Lists.newArrayList();
 			for (Element child : children) {
 				if ("objProp".equals(child.getName())) {
-					return;
-				}
-				recurse(child, depth + 1);
-				i++;
-				if (i != size) {
-					System.out.println(pad + ",");
+					continue;
+				} else if ("stringProp".equals(child.getName())) {
+					ret += pad + ".add(\"" + child.getAttribute("name").getValue() + "\", \"" + child.getValue().replace("\\", "\\\\").replace("\"", "\\\"") + "\") //\n";
+				} else if ("boolProp".equals(child.getName()) || "longProp".equals(child.getName()) || "intProp".equals(child.getName())) {
+					ret += pad + ".add(\"" + child.getAttribute("name").getValue() + "\", " + child.getValue() + ") //\n";
+				} else {
+					childrenValues.add(recurse(child, depth + 1));
 				}
 			}
-			System.out.println(pad + ") //");
+			if (!childrenValues.isEmpty()) {
+				ret += pad + ".add( //\n";
+				boolean first = true;
+				for (String s : childrenValues) {
+					if (!first) {
+						ret = StringUtils.removeEnd(ret, "//\n") + ",//\n";
+					}
+					first = false;
+					ret += pad + s;
+				}
+				ret += pad + ") //\n";
+			}
 		}
+		return ret.toString();
 	}
 }
